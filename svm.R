@@ -1,66 +1,54 @@
 # Read dataset
 data = read.csv("~/Desktop/stats final pj/parkinsons.data.csv")
-# Drop names
-cordata<-data[,-c(1)]
-# Sampling; Create training set and test set
-train.prop=0.80
-trainIndex <- createDataPartition(data$status, p=train.prop, list=FALSE)
+
+
+library(caret)
+library(MASS)
+library(lattice)
+library(ggplot2)
+library(randomForest)
+library("ROCR")
+library(corrgram)
+library(pROC)
+set.seed(2018)
+
+
+#convert response variable to factor
+
+data$status <- as.factor(data$status)
+
+# Splitting the data into train and test.
+
+trainIndex <- createDataPartition(data$status, p=0.8, list=FALSE)
 data_train <- data[ trainIndex,]
 data_test <- data[-trainIndex,]
 
-################ Some Plots ################
-library(ggplot2)
-# pie chart of patient status
-cordata$status<-as.factor(cordata$status)
-#test$status<-as.factor(test$status)
-#train$status<-as.factor(train$status)
-#pie<-ggplot(train, aes(x=factor(1)), fill=status)+
-#  geom_bar()+
-#  coord_polar("y")+scale_x_discrete("")
-
-#ggplot(train) +
-#geom_bar( aes(status) )
-
-#qplot(spread1,status,data=train,color=status)
-
-# library(corrplot)
-# x <- sapply(train, cor, y=train$status)
-# x<- data.frame(x)
-# corrplot(as.matrix(x))
-# ggplot(x)+coord_polar("y")
-# 
-# qplot(x,data=x)
-################################################
 
 # Support Vector Machine with different kernels
 library(e1071)
 for (i in c('linear','polynomial','radial','sigmoid'))
   # traing
-  svm <- svm(status~.,data=cordata,kernel=i)
+svm <- svm(status~.,data=cordata,kernel= 'radial')
 train_svm <-predict(svm,data_train)
 tab <- table(predicted=train_svm,actual=data_train$status)
 print('Prediction vs Actual(Training)')
 print(tab)
 acc_train <- sum(diag(tab))/sum(tab)
-cat('Training Accuracy using',i,'kernel is:',acc_train,'\n')
+#cat('Training Accuracy using',i,'kernel is:',acc_train,'\n')
 # test
 test_svm <- predict(svm,data_test)
 tab2 <- table(predicted= test_svm,actual=data_test$status)
 print('Prediction vs Actual(Test)')
 print(tab2)
-acc_test <- sum(diag(tab2))/sum(tab2)
-cat('Test Accuracy using',i,'kernel is:',acc_test,'\n')
+#cat('Test Accuracy using',i,'kernel is:',acc_test,'\n')
 
 
+#Get the value of accuracy, precision, recall and f1.
+acc_svm <- sum(diag(tab2))/sum(tab2)
+p_svm = precision(tab2)
+r_svm = recall(tab2)
+f_svm = (2 * p_svm * r_svm) / (p_svm + r_svm)
 
-# #tuning
-# set.seed(123)
-# #tmodel <-tune(svm,status~.,data=train,ranges=list(epsilon=seq(0,1,0.1),cost = 2^(2:9)))
-# #plot(tmodel)
-
-#best model
-#mymodel <- tmodel$best.model
-# pred2<-predict(mymodel,test)
-# tab2<-table(predicted=pred2,actual=test$status)
-# classification_rate2<-sum(diag(tab2))/sum(tab2)
-# classification_rate2
+#Get the plot of AUC(ROC)
+roc(test_svm,as.numeric(data_test$status), main = 'ROC curve of SVM(linear)', auc.polygon.col = 'skyblue', plot = TRUE, auc.polygon = TRUE, max.auc.polygon = TRUE, 
+    grid = TRUE, print.auc = TRUE)
